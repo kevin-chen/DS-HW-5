@@ -24,11 +24,12 @@
 #define N 1024 * 33
 
 __global__ void add( int *a, int *b, int *c ) {    
-    int tid = 0;
+    // int tid = 0;
+    int tid = blockIdx.x
     // loop over all the element in the vector
     while (tid < N){
         c[tid] = a[tid] + b[tid];
-        tid += 1; // we are using one thread in one block
+        tid += gridDim.x; // 1; // we are using one thread in one block
     }
 }
 
@@ -68,7 +69,7 @@ int main( void ) {
                               cudaMemcpyHostToDevice ) );
 
     // kernel invocation code
-    add<<<1,1>>>( dev_a, dev_b, dev_c );
+    add<<<128,1>>>( dev_a, dev_b, dev_c );
 
     // copy array 'c' back from the GPU to the CPU
     HANDLE_ERROR( cudaMemcpy( c, dev_c, N * sizeof(int),
