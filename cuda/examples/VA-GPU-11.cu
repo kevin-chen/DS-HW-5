@@ -25,7 +25,7 @@
 
 __global__ void add( int *a, int *b, int *c ) {    
     // int tid = 0;
-    int tid = blockIdx.x
+    int tid = blockIdx.x;
     // loop over all the element in the vector
     while (tid < N){
         c[tid] = a[tid] + b[tid];
