@@ -41,3 +41,6 @@ srun --x11 --pty /bin/bash
       ```
       srun --x11 --nodes=1 --gres=gpu:1 --pty Dot-GM
       ```
+
+## Convolution Code
+1. make test-audio

@@ -21,22 +21,24 @@ void cuda_blur_kernel_convolution(uint thread_index, const float* gpu_raw_data,
     // TODO: Implement the necessary convolution function that should be
     //       completed for each thread_index. Use the CPU implementation in
     //       blur.cpp as a reference.
+    
 }
 
 __global__
 void cuda_blur_kernel(const float *gpu_raw_data, const float *gpu_blur_v,
                       float *gpu_out_data, int n_frames, int blur_v_size) {
     // TODO: Compute the current thread index.
-    uint thread_index;
+    uint thread_index = blockIdx.x * blockDim.x + threadIdx.x;
 
     // TODO: Update the while loop to handle all indices for this thread.
     //       Remember to advance the index as necessary.
-    while (false) {
+    while (thread_index < n_frames) {
         // Do computation for this thread index
         cuda_blur_kernel_convolution(thread_index, gpu_raw_data,
                                      gpu_blur_v, gpu_out_data,
                                      n_frames, blur_v_size);
         // TODO: Update the thread index
+        thread_index += blockDim.x * gridDim.x;
     }
 }
 
@@ -59,19 +61,27 @@ float cuda_call_blur_kernel(const unsigned int blocks,
     //       has n_frames elements. Then copy the data in raw_data into the
     //       GPU memory you allocated.
     float* gpu_raw_data;
+    HANDLE_ERROR( cudaMalloc( (void**)&gpu_raw_data, n_frames * sizeof(float) ) );
+    HANDLE_ERROR( cudaMemcpy( gpu_raw_data, raw_data, n_frames * sizeof(float),
+                              cudaMemcpyHostToDevice ) );
 
     // TODO: Allocate GPU memory for the impulse signal (for now global GPU
     //       memory is fine). The data is of type float and has blur_v_size
     //       elements. Then copy the data in blur_v into the GPU memory you
     //       allocated.
     float* gpu_blur_v;
+    HANDLE_ERROR( cudaMalloc( (void**)&gpu_blur_v, blur_v_size * sizeof(float) ) );
+    HANDLE_ERROR( cudaMemcpy( gpu_blur_v, blur_v, blur_v_size * sizeof(float),
+                              cudaMemcpyHostToDevice ) );
 
     // TODO: Allocate GPU memory to store the output audio signal after the
     //       convolution. The data is of type float and has n_frames elements.
     //       Initialize the data as necessary.
     float* gpu_out_data;
+    HANDLE_ERROR( cudaMalloc( (void**)&gpu_out_data, n_frames * sizeof(float) ) );
   
     // TODO: Appropriately call the kernel function.
+    cuda_blur_kernel<<<blocks,threads_per_block>>>( gpu_raw_data, gpu_blur_v, gpu_out_data );
 
     // Check for errors on kernel call
     cudaError err = cudaGetLastError();
@@ -83,9 +93,18 @@ float cuda_call_blur_kernel(const unsigned int blocks,
     // TODO: Now that kernel calls have finished, copy the output signal
     //       back from the GPU to host memory. (We store this channel's result
     //       in out_data on the host.)
+    HANDLE_ERROR( cudaMemcpy( out_data, gpu_out_data, n_frames * sizeof(float),
+                              cudaMemcpyHostToDevice ) );
 
     // TODO: Now that we have finished our computations on the GPU, free the
     //       GPU resources.
+    HANDLE_ERROR( cudaFree( gpu_raw_data ) );
+    HANDLE_ERROR( cudaFree( gpu_blur_v ) );
+    HANDLE_ERROR( cudaFree( gpu_out_data ) );
+
+    // free( raw_data );
+    // free( blur_v );
+    // free( out_data );
 
     // Stop the recording timer and return the computation time
     cudaEventRecord(stop_gpu);
