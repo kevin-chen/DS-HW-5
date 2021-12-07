@@ -43,4 +43,7 @@ srun --x11 --pty /bin/bash
       ```
 
 ## Convolution Code
-1. make test-audio
+1. make audio
+    - compile the program
+2. make test-audio
+    - test the program

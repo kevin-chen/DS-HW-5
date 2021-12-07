@@ -21,7 +21,24 @@ void cuda_blur_kernel_convolution(uint thread_index, const float* gpu_raw_data,
     // TODO: Implement the necessary convolution function that should be
     //       completed for each thread_index. Use the CPU implementation in
     //       blur.cpp as a reference.
+    // printf("Hello from function: cuda_blur_kernel_convolution\n");
     
+    float outputValue = 0;
+
+    if (thread_index < blur_v_size) {
+        for (int j = 0; j <= thread_index; j++)
+            outputValue += gpu_raw_data[thread_index - j] * gpu_blur_v[j];
+    }
+    else {
+        for (int j = 0; j < blur_v_size; j++)
+            outputValue += gpu_raw_data[thread_index - j] * gpu_blur_v[j]; 
+    }
+
+    gpu_out_data[thread_index] = outputValue;
+
+    // for (int i = 0; i < blur_v_size; i++) {
+    //     printf("Raw Data: %f\n", gpu_raw_data[i]);
+    // }
 }
 
 __global__
@@ -34,6 +51,7 @@ void cuda_blur_kernel(const float *gpu_raw_data, const float *gpu_blur_v,
     //       Remember to advance the index as necessary.
     while (thread_index < n_frames) {
         // Do computation for this thread index
+        // printf("Thread Index: %d\n", thread_index);
         cuda_blur_kernel_convolution(thread_index, gpu_raw_data,
                                      gpu_blur_v, gpu_out_data,
                                      n_frames, blur_v_size);
@@ -81,7 +99,7 @@ float cuda_call_blur_kernel(const unsigned int blocks,
     HANDLE_ERROR( cudaMalloc( (void**)&gpu_out_data, n_frames * sizeof(float) ) );
   
     // TODO: Appropriately call the kernel function.
-    cuda_blur_kernel<<<blocks,threads_per_block>>>( gpu_raw_data, gpu_blur_v, gpu_out_data );
+    cuda_blur_kernel<<<blocks,threads_per_block>>>( gpu_raw_data, gpu_blur_v, gpu_out_data, n_frames, blur_v_size );
 
     // Check for errors on kernel call
     cudaError err = cudaGetLastError();
@@ -94,7 +112,7 @@ float cuda_call_blur_kernel(const unsigned int blocks,
     //       back from the GPU to host memory. (We store this channel's result
     //       in out_data on the host.)
     HANDLE_ERROR( cudaMemcpy( out_data, gpu_out_data, n_frames * sizeof(float),
-                              cudaMemcpyHostToDevice ) );
+                              cudaMemcpyDeviceToHost ) );
 
     // TODO: Now that we have finished our computations on the GPU, free the
     //       GPU resources.
