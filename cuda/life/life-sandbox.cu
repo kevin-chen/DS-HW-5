@@ -49,19 +49,35 @@ static void HandleError( cudaError_t err,
 
 __global__ void kernel(char *cells, char *cells_next) {
     // TODO: Provide implementation for kernel
+    
     printf("Hello from kernel");
 }
 
 void init_global(struct global *g) {
     // TODO: Initialize the global data structure as appropriate
+
+    // Initialize the CPU array, cells & cells_next
     printf("Hello from init_global");
+    const int size = GRID_SIZE*GRID_SIZE/8;
+    g->cells=(char*)malloc(size);
+    g->cells_next=(char*)malloc(size);
+    if (g->cells==NULL || g->cells_next==NULL) {
+        fprintf(stderr, "Error: can't alloc data\n");
+        exit(1);
+    }
+    for (int i=0; i<size; i++)
+        g->cells[i]=0;
+
+    // 
+    
 }
 
 bool get_cell(struct global *g, int x, int y) {
     // TODO: Provide implementation for get_cell function, used
     //       below to query state of automaton
     //       This can be similar to the CPU version
-    // printf("Hello from get_cell");
+
+    printf("Hello from get_cell");
     return false;
 }
 
@@ -69,6 +85,7 @@ void set_cell(struct global *g, int x, int y, bool val) {
     // TODO: Provide implementation for set_cell function, used
     //       below to load initial state of machine
     //       This can be similar to the CPU version
+
     printf("Hello from set_cell");
 }
 
@@ -77,10 +94,10 @@ void update(struct global *global) {
     //       Feel free to refer to and copy code, as appropriate,
     //       from the CPU implementation below.
 
-    // printf("Hello from update");
+    printf("Hello from update");
     
     // Call the kernel function to run one iteration on entire grid
-    // kernel<<<numBlock,numThread>>>(global->cells, global->cells_next);
+    kernel<<<numBlock,numThread>>>(global->cells, global->cells_next);
 }
 
 #else

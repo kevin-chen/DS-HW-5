@@ -2,6 +2,9 @@
 
 NYU HPC Nvidia Clusters
 
+## Resources
+- [Intro to Game of Life](https://www.youtube.com/watch?v=ouipbDkwHWA)
+
 ## Procedure on Vital
 1. ssh -Y kc3585@greene.hpc.nyu.edu
 2. cd cuda
@@ -47,3 +50,9 @@ srun --x11 --pty /bin/bash
     - compile the program
 2. make test-audio
     - test the program
+
+## Game of Life
+1. make go-cpu
+    - run on the CPU
+2. make go-cuda
+    - run on GPU
