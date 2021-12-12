@@ -29,7 +29,7 @@ __global__ void add( int *a, int *b, int *c ) {
     // loop over all the element in the vector
     while (tid < N){
         c[tid] = a[tid] + b[tid];
-        tid += gridDim.x; // 1; // we are using one thread in one block
+        tid += gridDim.x; // 1
     }
 }
 

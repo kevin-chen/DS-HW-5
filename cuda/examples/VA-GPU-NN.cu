@@ -32,7 +32,7 @@ __global__ void add( int *a, int *b, int *c ) {
 
     while (tid < N) {
         c[tid] = a[tid] + b[tid];
-        tid += blockDim.x * gridDim.x ;// shift by the total number of thread in a grid
+        tid += blockDim.x * gridDim.x ; // shift by the total number of thread in a grid
     }
 }
 

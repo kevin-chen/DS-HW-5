@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <time.h>
 
-#define numThread 128
-#define numBlock 128
+#define numThread 1 // 128
+#define numBlock 1 // 128
 
 /***********************
     Data structures
@@ -49,19 +49,67 @@ static void HandleError( cudaError_t err,
 
 __global__ void kernel(char *cells, char *cells_next) {
     // TODO: Provide implementation for kernel
+    
     printf("Hello from kernel");
+
+    int tid = blockIdx.x;
+
+    while (tid < GRID_SIZE * GRID_SIZE) {
+      int x = tid / GRID_SIZE;
+      int y = tid % GRID_SIZE;
+
+      if ( (x > 0 && x < GRID_SIZE - 1) && (y > 0 && y < GRID_SIZE - 1) ) {
+          // do count neighbor, which includes get_cell
+          // do set_cell with new state
+      }
+
+      tid += blockDim.x * gridDim.x;
+    }
+
+    // for (int x=1; x<GRID_SIZE-1; x++)
+    //     for (int y=1; y<GRID_SIZE-1; y++) {
+    //         int neighbors = count_neighbors(global, x, y);
+    //         bool newstate = 
+    //             neighbors==3 || (get_cell(global,x,y) && (neighbors == 2 || neighbors == 3));
+    //         set_cell_next(global,x,y,newstate);
+    //     }
 }
 
 void init_global(struct global *g) {
     // TODO: Initialize the global data structure as appropriate
+
     printf("Hello from init_global");
+
+    // Allocate the CPU arrays, cells & cells_next
+    const int size = GRID_SIZE*GRID_SIZE/8;
+    g->cells=(char*)malloc(size);
+    g->cells_next=(char*)malloc(size);
+    if (g->cells==NULL || g->cells_next==NULL) {
+        fprintf(stderr, "Error: can't alloc data\n");
+        exit(1);
+    }
+
+    // Initialize the CPU arrays
+    for (int i=0; i<size; i++)
+        g->cells[i]=0;
+
+    // Allocate the GPU arrays
+    HANDLE_ERROR( cudaMalloc( (void**)&g->gpu_cells, size * sizeof(char) ) );
+    HANDLE_ERROR( cudaMalloc( (void**)&g->gpu_cells_next, size * sizeof(char) ) );
+
+    // Initalize the mutex array
+    
 }
 
 bool get_cell(struct global *g, int x, int y) {
     // TODO: Provide implementation for get_cell function, used
     //       below to query state of automaton
     //       This can be similar to the CPU version
+
     // printf("Hello from get_cell");
+    
+    // return (g->cells[(y*GRID_SIZE + x)/8] & (1<<(x%8))) != 0;
+
     return false;
 }
 
@@ -69,7 +117,13 @@ void set_cell(struct global *g, int x, int y, bool val) {
     // TODO: Provide implementation for set_cell function, used
     //       below to load initial state of machine
     //       This can be similar to the CPU version
-    printf("Hello from set_cell");
+
+    // printf("Hello from set_cell");
+
+    // if (val)
+    //     g->cells[(y*GRID_SIZE+x)/8] |= (1<<(x%8));
+    // else
+    //     g->cells[(y*GRID_SIZE+x)/8] &= ~(1<<(x%8));
 }
 
 void update(struct global *global) {
@@ -78,9 +132,28 @@ void update(struct global *global) {
     //       from the CPU implementation below.
 
     // printf("Hello from update");
-    
-    // Call the kernel function to run one iteration on entire grid
-    // kernel<<<numBlock,numThread>>>(global->cells, global->cells_next);
+
+    // const int size = GRID_SIZE * GRID_SIZE / 8;
+
+    // // Copy data from CPU array to GPU array
+    // HANDLE_ERROR( cudaMemcpy( global->gpu_cells, global->cells, size * sizeof(char),
+    //                           cudaMemcpyHostToDevice ) );
+    // HANDLE_ERROR( cudaMemcpy( global->gpu_cells_next, global->cells_next, size * sizeof(char),
+    //                           cudaMemcpyHostToDevice ) );
+
+    // // Call the kernel function to run one iteration on entire grid
+    // printf("Invoking kernel");
+    // kernel<<<numBlock,numThread>>>(global->gpu_cells, global->gpu_cells_next);
+
+    // // Copy the calculcated data from GPU to CPU
+    // HANDLE_ERROR( cudaMemcpy( global->cells, global->gpu_cells, size * sizeof(char),
+    //                           cudaMemcpyDeviceToHost ) );
+    // HANDLE_ERROR( cudaMemcpy( global->cells_next, global->gpu_cells_next, size * sizeof(char),
+    //                           cudaMemcpyDeviceToHost ) );
+
+    // char *temp = global->cells;
+    // global->cells = global->cells_next;
+    // global->cells_next = temp;
 }
 
 #else
