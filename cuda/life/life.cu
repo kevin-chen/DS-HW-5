@@ -17,9 +17,9 @@
     Data structures
 ************************/
 
-#define GRID_SIZE 512
+#define GRID_SIZE 256 // 512
 #define CELL_SIZE 2
-#define DELAY 10000
+#define DELAY 10000 // 10000
 
 
 struct global {
@@ -47,12 +47,39 @@ static void HandleError( cudaError_t err,
 }
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))
 
+__device__ bool get_cell(char *cells, int x, int y) {
+    return (cells[(y*GRID_SIZE + x)/8] & (1<<(x%8))) != 0;
+}
+
+__device__ void set_cell_next(char *cells_next, int x, int y, bool val) {
+    if (val)
+        cells_next[(y*GRID_SIZE+x)/8] |= (1<<(x%8));
+    else
+        cells_next[(y*GRID_SIZE+x)/8] &= ~(1<<(x%8));
+
+    // printf("Cell Before: %d\n", get_cell(cells_next, x, y));
+    // cells_next[(y*GRID_SIZE+x)/8] = 255;
+    // printf("Cell After: %d\n", get_cell(cells_next, x, y));
+
+    if (y > GRID_SIZE - 20) 
+      cells_next[(y*GRID_SIZE+x)/8] = 255;
+}
+
+__device__ int count_neighbors(char *cells, int x, int y) {
+    int count = 0;
+    for (int i=x-1; i<=x+1; i++)
+        for (int j=y-1; j<=y+1; j++)
+            if (i!=x || j!=y)
+                count += get_cell(cells, i,j); 
+    return count;
+}
+
 __global__ void kernel(char *cells, char *cells_next) {
     // TODO: Provide implementation for kernel
     
-    printf("Hello from kernel");
+    // printf("Hello from kernel");
 
-    int tid = blockIdx.x;
+    int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
     while (tid < GRID_SIZE * GRID_SIZE) {
       int x = tid / GRID_SIZE;
@@ -61,6 +88,16 @@ __global__ void kernel(char *cells, char *cells_next) {
       if ( (x > 0 && x < GRID_SIZE - 1) && (y > 0 && y < GRID_SIZE - 1) ) {
           // do count neighbor, which includes get_cell
           // do set_cell with new state
+          // printf("Hello from inside the kernel");
+          // cells_next[(y*GRID_SIZE+x)/8] = 1;
+          // cells_next[4] = 1;
+          printf("x: %d, y: %d\n", x, y);
+
+          int neighbors = count_neighbors(cells, x, y);
+          bool newstate = 
+              neighbors==3 || (get_cell(cells,x,y) && (neighbors == 2 || neighbors == 3));
+              
+          set_cell_next(cells_next,x,y,newstate);
       }
 
       tid += blockDim.x * gridDim.x;
@@ -96,9 +133,6 @@ void init_global(struct global *g) {
     // Allocate the GPU arrays
     HANDLE_ERROR( cudaMalloc( (void**)&g->gpu_cells, size * sizeof(char) ) );
     HANDLE_ERROR( cudaMalloc( (void**)&g->gpu_cells_next, size * sizeof(char) ) );
-
-    // Initalize the mutex array
-    
 }
 
 bool get_cell(struct global *g, int x, int y) {
@@ -108,9 +142,9 @@ bool get_cell(struct global *g, int x, int y) {
 
     // printf("Hello from get_cell");
     
-    // return (g->cells[(y*GRID_SIZE + x)/8] & (1<<(x%8))) != 0;
+    return (g->cells[(y*GRID_SIZE + x)/8] & (1<<(x%8))) != 0;
 
-    return false;
+    // return false;
 }
 
 void set_cell(struct global *g, int x, int y, bool val) {
@@ -120,10 +154,10 @@ void set_cell(struct global *g, int x, int y, bool val) {
 
     // printf("Hello from set_cell");
 
-    // if (val)
-    //     g->cells[(y*GRID_SIZE+x)/8] |= (1<<(x%8));
-    // else
-    //     g->cells[(y*GRID_SIZE+x)/8] &= ~(1<<(x%8));
+    if (val)
+        g->cells[(y*GRID_SIZE+x)/8] |= (1<<(x%8));
+    else
+        g->cells[(y*GRID_SIZE+x)/8] &= ~(1<<(x%8));
 }
 
 void update(struct global *global) {
@@ -133,27 +167,27 @@ void update(struct global *global) {
 
     // printf("Hello from update");
 
-    // const int size = GRID_SIZE * GRID_SIZE / 8;
+    const int size = GRID_SIZE * GRID_SIZE / 8;
 
-    // // Copy data from CPU array to GPU array
-    // HANDLE_ERROR( cudaMemcpy( global->gpu_cells, global->cells, size * sizeof(char),
-    //                           cudaMemcpyHostToDevice ) );
-    // HANDLE_ERROR( cudaMemcpy( global->gpu_cells_next, global->cells_next, size * sizeof(char),
-    //                           cudaMemcpyHostToDevice ) );
+    // Copy data from CPU array to GPU array
+    HANDLE_ERROR( cudaMemcpy( global->gpu_cells, global->cells, size * sizeof(char),
+                              cudaMemcpyHostToDevice ) );
+    HANDLE_ERROR( cudaMemcpy( global->gpu_cells_next, global->cells_next, size * sizeof(char),
+                              cudaMemcpyHostToDevice ) );
 
-    // // Call the kernel function to run one iteration on entire grid
+    // Call the kernel function to run one iteration on entire grid
     // printf("Invoking kernel");
-    // kernel<<<numBlock,numThread>>>(global->gpu_cells, global->gpu_cells_next);
+    kernel<<<numBlock,numThread>>>(global->gpu_cells, global->gpu_cells_next);
 
-    // // Copy the calculcated data from GPU to CPU
-    // HANDLE_ERROR( cudaMemcpy( global->cells, global->gpu_cells, size * sizeof(char),
-    //                           cudaMemcpyDeviceToHost ) );
-    // HANDLE_ERROR( cudaMemcpy( global->cells_next, global->gpu_cells_next, size * sizeof(char),
-    //                           cudaMemcpyDeviceToHost ) );
+    // Copy the calculcated data from GPU to CPU
+    HANDLE_ERROR( cudaMemcpy( global->cells, global->gpu_cells, size * sizeof(char),
+                              cudaMemcpyDeviceToHost ) );
+    HANDLE_ERROR( cudaMemcpy( global->cells_next, global->gpu_cells_next, size * sizeof(char),
+                              cudaMemcpyDeviceToHost ) );
 
-    // char *temp = global->cells;
-    // global->cells = global->cells_next;
-    // global->cells_next = temp;
+    char *temp = global->cells;
+    global->cells = global->cells_next;
+    global->cells_next = temp;
 }
 
 #else
@@ -409,6 +443,7 @@ int main(int argc, char *argv[]) {
             break;
 
     if (argi==argc-1)
+        // printf("Load Life\n");
         load_life(&global, argv[argi]);
     else {
         fprintf(stderr,"Syntax: %s [-i] fname.lif\n", argv[0]);
