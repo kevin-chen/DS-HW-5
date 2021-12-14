@@ -7,14 +7,15 @@
 /*
     Approach: Kernel, each thread takes 8 consecutive cells (since this is 
     how the cells char array is divided) and runs a for-loop over the 8 cells
-    in its control and writes to the cells char array sequentially
+    in its control and writes to the cells char array sequentially. 
+    No two threads would access the same cell memory location.
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <X11/Xlib.h>
 #include <unistd.h>
-#include <time.h
+#include <time.h>
 
 /***********************
     Data structures
