@@ -19,7 +19,7 @@
 
 #define GRID_SIZE 512 // 512
 #define CELL_SIZE 2
-#define DELAY 10000000 // 10000
+#define DELAY 10000 // 10000
 
 
 struct global {
@@ -77,34 +77,19 @@ __device__ int count_neighbors(char *cells, int x, int y) {
 __global__ void kernel(char *cells, char *cells_next) {
     // TODO: Provide implementation for kernel
     
-    int tid = blockIdx.x * blockDim.x + threadIdx.x;
-    int startIndex = tid * 8;
-    // printf("tid: %d, start: %d\n", tid, index);
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
 
-    int index;
-    for (int i = 0; i < 8; i++) {
-        index = startIndex + i;
-        int x = index / GRID_SIZE;
-        int y = index % GRID_SIZE;
-        // printf("x: %d, y: %d\n", x, y);
+    if ( (i > 0 && i < GRID_SIZE - 1) && (j > 0 && j < GRID_SIZE - 1) ) {
+        // int neighbors = count_neighbors(cells, i, j);
+        // if (neighbors != 0)
+        //     printf("Neighbors for %d, %d: %d\n", i, j, neighbors);
 
-        int neighbors = count_neighbors(cells, x, y);
+        int neighbors = count_neighbors(cells, i, j);
         bool newstate = 
-            neighbors==3 || (get_cell(cells,x,y) && (neighbors == 2 || neighbors == 3));
-        set_cell_next(cells_next,x,y,newstate);
+            neighbors==3 || (get_cell(cells,i,j) && (neighbors == 2 || neighbors == 3));
+        set_cell_next(cells_next,i,j,newstate);
     }
-
-    // while (tid < (GRID_SIZE * GRID_SIZE / 8) ) {
-    // int x = index / GRID_SIZE;
-    // int y = index % GRID_SIZE;
-    // printf("x: %d, y: %d\n", x, y);
-
-    // if ( (x > 0 && x < GRID_SIZE - 1) && (y > 0 && y < GRID_SIZE - 1) ) {
-    //     printf("x: %d, y: %d\n", x, y);
-    // }
-
-    // tid += blockDim.x * gridDim.x;
-    // }
 }
 
 void init_global(struct global *g) {
@@ -160,9 +145,9 @@ void update(struct global *global) {
 
     // Call the kernel function to run one iteration on entire grid
     // printf("Invoking kernel");
-    int numBlock = 10; // GRID_SIZE / 8;
-    int numThread = 128; // GRID_SIZE;
-    kernel<<<numBlock,numThread>>>(global->gpu_cells, global->gpu_cells_next);
+    dim3 threadsPerBlock(16, 16); 
+    dim3 numBlocks(GRID_SIZE / threadsPerBlock.x, GRID_SIZE / threadsPerBlock.y);
+    kernel<<<numBlocks,threadsPerBlock>>>(global->gpu_cells, global->gpu_cells_next);
 
     // Copy the calculcated data from GPU to CPU
     HANDLE_ERROR( cudaMemcpy( global->cells, global->gpu_cells, size * sizeof(char),
