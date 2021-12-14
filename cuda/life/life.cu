@@ -10,16 +10,16 @@
 #include <unistd.h>
 #include <time.h>
 
-#define numThread 1 // 128
-#define numBlock 1 // 128
+// #define numThread 1 // 128
+// #define numBlock 1 // 128
 
 /***********************
     Data structures
 ************************/
 
-#define GRID_SIZE 256 // 512
+#define GRID_SIZE 512 // 512
 #define CELL_SIZE 2
-#define DELAY 10000 // 10000
+#define DELAY 10000000 // 10000
 
 
 struct global {
@@ -61,8 +61,8 @@ __device__ void set_cell_next(char *cells_next, int x, int y, bool val) {
     // cells_next[(y*GRID_SIZE+x)/8] = 255;
     // printf("Cell After: %d\n", get_cell(cells_next, x, y));
 
-    if (y > GRID_SIZE - 20) 
-      cells_next[(y*GRID_SIZE+x)/8] = 255;
+    // if (y > GRID_SIZE - 20) 
+    //   cells_next[(y*GRID_SIZE+x)/8] = 255;
 }
 
 __device__ int count_neighbors(char *cells, int x, int y) {
@@ -77,45 +77,38 @@ __device__ int count_neighbors(char *cells, int x, int y) {
 __global__ void kernel(char *cells, char *cells_next) {
     // TODO: Provide implementation for kernel
     
-    // printf("Hello from kernel");
-
     int tid = blockIdx.x * blockDim.x + threadIdx.x;
+    int startIndex = tid * 8;
+    // printf("tid: %d, start: %d\n", tid, index);
 
-    while (tid < GRID_SIZE * GRID_SIZE) {
-      int x = tid / GRID_SIZE;
-      int y = tid % GRID_SIZE;
+    int index;
+    for (int i = 0; i < 8; i++) {
+        index = startIndex + i;
+        int x = index / GRID_SIZE;
+        int y = index % GRID_SIZE;
+        // printf("x: %d, y: %d\n", x, y);
 
-      if ( (x > 0 && x < GRID_SIZE - 1) && (y > 0 && y < GRID_SIZE - 1) ) {
-          // do count neighbor, which includes get_cell
-          // do set_cell with new state
-          // printf("Hello from inside the kernel");
-          // cells_next[(y*GRID_SIZE+x)/8] = 1;
-          // cells_next[4] = 1;
-          printf("x: %d, y: %d\n", x, y);
-
-          int neighbors = count_neighbors(cells, x, y);
-          bool newstate = 
-              neighbors==3 || (get_cell(cells,x,y) && (neighbors == 2 || neighbors == 3));
-              
-          set_cell_next(cells_next,x,y,newstate);
-      }
-
-      tid += blockDim.x * gridDim.x;
+        int neighbors = count_neighbors(cells, x, y);
+        bool newstate = 
+            neighbors==3 || (get_cell(cells,x,y) && (neighbors == 2 || neighbors == 3));
+        set_cell_next(cells_next,x,y,newstate);
     }
 
-    // for (int x=1; x<GRID_SIZE-1; x++)
-    //     for (int y=1; y<GRID_SIZE-1; y++) {
-    //         int neighbors = count_neighbors(global, x, y);
-    //         bool newstate = 
-    //             neighbors==3 || (get_cell(global,x,y) && (neighbors == 2 || neighbors == 3));
-    //         set_cell_next(global,x,y,newstate);
-    //     }
+    // while (tid < (GRID_SIZE * GRID_SIZE / 8) ) {
+    // int x = index / GRID_SIZE;
+    // int y = index % GRID_SIZE;
+    // printf("x: %d, y: %d\n", x, y);
+
+    // if ( (x > 0 && x < GRID_SIZE - 1) && (y > 0 && y < GRID_SIZE - 1) ) {
+    //     printf("x: %d, y: %d\n", x, y);
+    // }
+
+    // tid += blockDim.x * gridDim.x;
+    // }
 }
 
 void init_global(struct global *g) {
     // TODO: Initialize the global data structure as appropriate
-
-    printf("Hello from init_global");
 
     // Allocate the CPU arrays, cells & cells_next
     const int size = GRID_SIZE*GRID_SIZE/8;
@@ -139,21 +132,13 @@ bool get_cell(struct global *g, int x, int y) {
     // TODO: Provide implementation for get_cell function, used
     //       below to query state of automaton
     //       This can be similar to the CPU version
-
-    // printf("Hello from get_cell");
-    
     return (g->cells[(y*GRID_SIZE + x)/8] & (1<<(x%8))) != 0;
-
-    // return false;
 }
 
 void set_cell(struct global *g, int x, int y, bool val) {
     // TODO: Provide implementation for set_cell function, used
     //       below to load initial state of machine
     //       This can be similar to the CPU version
-
-    // printf("Hello from set_cell");
-
     if (val)
         g->cells[(y*GRID_SIZE+x)/8] |= (1<<(x%8));
     else
@@ -165,8 +150,6 @@ void update(struct global *global) {
     //       Feel free to refer to and copy code, as appropriate,
     //       from the CPU implementation below.
 
-    // printf("Hello from update");
-
     const int size = GRID_SIZE * GRID_SIZE / 8;
 
     // Copy data from CPU array to GPU array
@@ -177,6 +160,8 @@ void update(struct global *global) {
 
     // Call the kernel function to run one iteration on entire grid
     // printf("Invoking kernel");
+    int numBlock = 10; // GRID_SIZE / 8;
+    int numThread = 128; // GRID_SIZE;
     kernel<<<numBlock,numThread>>>(global->gpu_cells, global->gpu_cells_next);
 
     // Copy the calculcated data from GPU to CPU
@@ -443,7 +428,6 @@ int main(int argc, char *argv[]) {
             break;
 
     if (argi==argc-1)
-        // printf("Load Life\n");
         load_life(&global, argv[argi]);
     else {
         fprintf(stderr,"Syntax: %s [-i] fname.lif\n", argv[0]);
